@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3: Time axis</title>
+		<script type="text/javascript" src="../d3.js"></script>
+		<style type="text/css">
+			circle:hover {
+				fill: black;
+			}		
+			
+			#tooltip {
+				position: absolute;
+				width: 150px;
+				height: auto;
+				padding: 7px;
+				background-color: black;
+				-webkit-border-radius: 10px;
+				-moz-border-radius: 10px;
+				border-radius: 10px;
+				pointer-events: none;
+			}
+			
+			#tooltip.hidden {
+				display: none;
+			}
+			
+			#tooltip p {
+				margin: 0;
+				font-family: sans-serif;
+				font-size: 14px;
+				line-height: 15px;
+				color:white;
+			}
+			
+		</style>
+	</head>
+	<body>
+		<div id="tooltip" class="hidden">
+			
+			 <p><span id="value1"></span></p>
+			
+			</div>
+		<script type="text/javascript">
+
+			//Width and height
+			var w = 1300;
+			var h =600;
+			var padding = 50;
+			
+			var dataset, xScale, yScale, xAxis, yAxis;  //Empty, for now
+
+			//For converting strings to Dates
+			var parseTime = d3.timeParse("%m/%d/%y");
+			
+
+			//For converting Dates to strings
+			var formatTime = d3.timeFormat("%b %d");
+
+			//Function for converting CSV values from strings to Dates and numbers
+			var rowConverter = function(d) {
+				return {
+					Date: parseTime(d.Date),
+					Time: parseFloat(d.Time),
+					Key: parseInt(d.Key),
+					type:d.type,
+					IncidentAddress:d.IncidentAddress
+				};
+			}
+
+			//Load in the data
+			d3.csv("311_AnimalAbuse.csv", rowConverter, function(data) {
+
+				//Copy data into global dataset
+				dataset = data;
+				
+				
+				var color = d3.scaleOrdinal()
+			   .domain([
+					d3.min(dataset, function(d) { return d.Key; }),
+					d3.max(dataset, function(d) { return d.Key; })
+				])
+			        .range(['rgb(254, 67, 101)','rgb(252, 157, 154)','rgb(249, 205, 173)','rgb(240, 180, 240)','rgb(80, 200, 150)','rgb(20, 120, 30)'])
+				
+				//Create scale functions
+				var startDate = d3.min(dataset, function(d) { return d.Date; });
+				var endDate = d3.max(dataset, function(d) { return d.Date; });
+				
+				//Create scale functions
+				xScale = d3.scaleTime()
+							   .domain([
+									d3.timeDay.offset(startDate, -1),  //startDate minus one day, for padding
+									d3.timeDay.offset(endDate, 1)	  //endDate plus one day, for padding
+								])
+							   .range([padding, w - padding*2]);
+				
+
+				yScale = d3.scaleLinear()
+							   .domain([
+									d3.min(dataset, function(d) { return d.Time; }),
+									d3.max(dataset, function(d) { return d.Time; })
+								])
+							   .range([h-padding, padding*2]);
+
+				//Define X axis
+				xAxis = d3.axisBottom()
+								  .scale(xScale)
+								  .ticks(31);
+
+				//Define Y axis
+				yAxis = d3.axisLeft()
+								  .scale(yScale)
+								  .ticks(25);
+
+				//Create SVG element
+				var svg = d3.select("body")
+							.append("svg")
+							.attr("width", w)
+							.attr("height", h);
+
+						// create title
+						svg.append("text")
+							 .attr("x", w/2)
+						   .attr("y", 25)
+							 .attr("text-anchor", "middle")
+							 .attr("font-size", "16px")
+							 .attr("font-family", "sans-serif")
+							 .attr("fill", "black")
+							 .text("Complaints on Animal Abuse in NYC in Jan 2019")
+							
+						// create label for axis x
+						svg.append("text")
+							 .attr("x", w-padding)
+						   .attr("y", h-9)
+							 .attr("text-anchor", "middle")
+							 .attr("font-size", "12px")
+							 .attr("font-family", "sans-serif")
+							 .attr("fill", "grey")
+							 .text("Dates")
+							
+						// create label for axis y
+						svg.append("text")
+							 .attr("x", 40)
+						   .attr("y", 40)
+							 .attr("text-anchor", "middle")
+							 .attr("font-size", "12px")
+							 .attr("font-family", "sans-serif")
+							 .attr("fill", "grey")
+							 .text("Time")
+							
+
+						// create label for source
+						svg.append("text")
+							 .attr("x", w/2)
+						   .attr("y", h-2)
+							 .attr("text-anchor", "middle")
+							 .attr("font-size", "12px")
+							 .attr("font-family", "sans-serif")
+							 .attr("fill", "grey")
+							 .text("Source:NYC 311 Open Data")
+							
+ 		 				//Generate date labels first, so they are in back
+ 		  				/*svg.selectAll("text")
+ 		  				   .data(dataset)
+ 		  				   .enter()
+ 		  				   .append("text")
+ 		  				   .text(function(d) {
+ 		  				   		return d.Time;
+ 		  				   })
+ 		  				   .attr("x", function(d) {
+ 		  				   		return xScale(d.Date) + 4;
+ 		  				   })
+ 		  				   .attr("y", function(d) {
+ 		  				   		return yScale(d.Time) + 4;
+ 		  				   })
+ 		  				   .attr("font-family", "sans-serif")
+ 		  				   .attr("font-size", "7px")
+ 		  				   .attr("fill", "black")
+						    .style("opacity",.4);*/
+							
+							
+				//Generate circles last, so they appear in front
+				svg.selectAll("circle")
+				   .data(dataset)
+				   .enter()
+				   .append("circle")
+				   .attr("cx", function(d) {
+				   		return xScale(d.Date);
+				   })
+				   .attr("cy", function(d) {
+				   		return yScale(d.Time);
+				   })
+				   .attr("r", 4)
+				 .attr("fill", function(d){
+							 return color(d.Key);
+					})
+				   .style("opacity",.55)
+			
+				   .on("mouseover", function(d) {
+
+						//Get this bar's x/y values, then augment for the tooltip
+						var xPosition = parseFloat(d3.select(this).attr("cx")) +20;
+						var yPosition = parseFloat(d3.select(this).attr("cy"))  + 20;
+
+
+						//Update the tooltip position and value
+						d3.select("#tooltip")
+							.style("left", xPosition + "px")
+							.style("top", yPosition + "px")			
+							.select("#value1")
+						.html('Abuse Type:'+d.type+"<br>"+'Incident Address:'+d.IncidentAddress);
+							
+						
+							
+						//Show the tooltip
+						d3.select("#tooltip").classed("hidden", false);
+
+				   })
+				   .on("mouseout", function() {
+			   
+						//Hide the tooltip
+						d3.select("#tooltip").classed("hidden", true);
+					
+				   });
+				   
+	   			
+	   			//Create X axis
+	   			svg.append("g")
+	   				.attr("class", "axis")
+	   				.attr("transform", "translate(0," + (h - padding) + ")")
+	   				.call(xAxis);
+	   			
+	   			//Create Y axis
+	   			svg.append("g")
+	   				.attr("class", "axis")
+	   				.attr("transform", "translate(" + padding + ",0)")
+	   				.call(yAxis);
+
+
+			});
+			
+		</script>
+	</body>
+</html>
